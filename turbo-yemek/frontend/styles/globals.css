@@ -1,0 +1,359 @@
+@import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=JetBrains+Mono:wght@400;500;700&display=swap");
+
+:root {
+  --bg: #15130f;
+  --bg-soft: #1d1a14;
+  --card: #211e17;
+  --turbo: #ff5a1f;
+  --turbo-bright: #ff8a3d;
+  --lime: #c8e676;
+  --cream: #f4ecd8;
+  --muted: #8a8475;
+  --border: #34301f;
+  --error: #ff6b6b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  background: var(--bg);
+  color: var(--cream);
+  font-family: "Bricolage Grotesque", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+}
+
+.mono {
+  font-family: "JetBrains Mono", monospace;
+}
+
+/* ---- Layout ---- */
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 20px 80px;
+}
+
+.container {
+  width: 100%;
+  max-width: 640px;
+}
+
+/* ---- Header / hero ---- */
+.hero {
+  padding: 56px 0 32px;
+  text-align: left;
+}
+
+.speedmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--turbo-bright);
+  margin-bottom: 18px;
+}
+
+.speedmark::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  background: var(--turbo);
+  border-radius: 1px;
+  display: inline-block;
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.8); }
+}
+
+.hero h1 {
+  font-size: clamp(40px, 9vw, 64px);
+  line-height: 0.95;
+  font-weight: 800;
+  margin: 0 0 12px;
+  letter-spacing: -0.02em;
+}
+
+.hero h1 .accent {
+  color: var(--turbo);
+  font-style: italic;
+}
+
+.hero p {
+  font-size: 17px;
+  color: var(--muted);
+  max-width: 480px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ---- Card ---- */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 28px;
+  margin-top: 28px;
+}
+
+.card + .card {
+  margin-top: 20px;
+}
+
+.field {
+  margin-bottom: 18px;
+}
+
+.field:last-child {
+  margin-bottom: 0;
+}
+
+.field label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cream);
+  margin-bottom: 8px;
+}
+
+.field label .hint {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+  text-transform: none;
+}
+
+.field input,
+.field select {
+  width: 100%;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 13px 14px;
+  font-size: 15px;
+  color: var(--cream);
+  font-family: "JetBrains Mono", monospace;
+  transition: border-color 0.15s ease;
+}
+
+.field input::placeholder {
+  color: #565041;
+}
+
+.field input:focus,
+.field select:focus {
+  outline: none;
+  border-color: var(--turbo);
+}
+
+.field .note {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+.field .note a {
+  color: var(--turbo-bright);
+  text-decoration: underline;
+}
+
+/* ---- Button ---- */
+.btn {
+  width: 100%;
+  background: var(--turbo);
+  color: #1a1208;
+  border: none;
+  border-radius: 8px;
+  padding: 15px 20px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.1s ease, background 0.15s ease;
+  font-family: "Bricolage Grotesque", sans-serif;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--turbo-bright);
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
+.btn:disabled {
+  background: var(--border);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+/* ---- Status / errors ---- */
+.status {
+  margin-top: 16px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border);
+  border-top-color: var(--turbo);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.error-box {
+  margin-top: 16px;
+  background: rgba(255, 107, 107, 0.08);
+  border: 1px solid rgba(255, 107, 107, 0.3);
+  border-radius: 8px;
+  padding: 14px 16px;
+  color: var(--error);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ---- Recipe result ---- */
+.recipe {
+  margin-top: 28px;
+}
+
+.recipe-title {
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0 0 4px;
+  letter-spacing: -0.01em;
+}
+
+.recipe-meta {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  color: var(--lime);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 24px;
+}
+
+.recipe-section {
+  margin-bottom: 24px;
+}
+
+.recipe-section:last-child {
+  margin-bottom: 0;
+}
+
+.recipe-section h3 {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--turbo-bright);
+  margin: 0 0 12px;
+}
+
+.ingredient-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ingredient-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 15px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--border);
+}
+
+.ingredient-list li::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  background: var(--lime);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.step-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.step-list li {
+  display: flex;
+  gap: 14px;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.step-num {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--turbo);
+  flex-shrink: 0;
+  width: 24px;
+}
+
+.recipe-notes {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.5;
+  font-style: italic;
+}
+
+/* ---- Footer ---- */
+.footer {
+  margin-top: 48px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.6;
+}
+
+@media (max-width: 480px) {
+  .hero {
+    padding: 36px 0 24px;
+  }
+  .card {
+    padding: 20px;
+  }
+}
