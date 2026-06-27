@@ -16,10 +16,12 @@ RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o 
     && chmod a+rx /usr/local/bin/yt-dlp
 
 # whisper.cpp'yi kaynaktan derliyoruz (tamamen ucretsiz, kendi sunucumuzda calisan transkript motoru)
+# -DBUILD_SHARED_LIBS=OFF: statik link kullaniyoruz, boylece tek bir self-contained
+# binary elde ediyoruz (libwhisper.so / libggml.so'ya calisma zamaninda bagimli kalmiyoruz)
 RUN git clone --depth 1 https://github.com/ggml-org/whisper.cpp.git /opt/whisper.cpp \
     && cd /opt/whisper.cpp \
-    && cmake -B build -DCMAKE_BUILD_TYPE=Release \
-    && cmake --build build -j --config Release \
+    && cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF \
+    && cmake --build build -j --config Release --target whisper-cli \
     && cp build/bin/whisper-cli /usr/local/bin/whisper-cli
 
 # Multilingual "tiny" modelini indiriyoruz (Turkce destekler, ~75MB, az RAM kullanir)
