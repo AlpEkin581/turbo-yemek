@@ -30,50 +30,17 @@ function cleanup(...filePaths) {
   }
 }
 
-// ---- YouTube cookie dosyasini hazirla (env variable'dan) ----
-const COOKIES_PATH = path.join(TMP_DIR, "youtube_cookies.txt");
-function ensureCookiesFile() {
-  if (fs.existsSync(COOKIES_PATH)) return COOKIES_PATH;
-
-  const raw = process.env.YOUTUBE_COOKIES_BASE64 || process.env.YOUTUBE_COOKIES;
-  if (!raw) return null;
-
-  let content;
-  if (process.env.YOUTUBE_COOKIES_BASE64) {
-    // Base64 ile geldiyse decode ediyoruz (multi-line bozulma riskine karsi en guvenli yontem)
-    content = Buffer.from(raw, "base64").toString("utf-8");
-  } else {
-    content = raw;
-  }
-
-  if (!content.includes("Netscape HTTP Cookie File")) {
-    console.error("UYARI: YOUTUBE_COOKIES icerigi Netscape formatinda gorunmuyor.");
-  }
-
-  fs.writeFileSync(COOKIES_PATH, content, "utf-8");
-  return COOKIES_PATH;
-}
-
 // ---- Adim 1: URL'den ses dosyasi indir (yt-dlp) ----
+// Not: YouTube destegi kaldirildi - datacenter sunucu IP'leri YouTube tarafindan
+// bot olarak isaretleniyor ve bu cookie ile cozulemiyor. TikTok ve Instagram'da
+// bu sorun yasanmiyor, bu yuzden sadece bu ikisini destekliyoruz.
 async function downloadAudio(videoUrl, jobId) {
   const outputTemplate = path.join(TMP_DIR, `${jobId}.%(ext)s`);
   const finalPath = path.join(TMP_DIR, `${jobId}.mp3`);
 
-  // YouTube bot tespitini atlatmak icin: once cookie dosyasi varsa onu kullan,
-  // yoksa android client spoofing'e geri don
-  const cookiesFile = ensureCookiesFile();
-  const authArgs = cookiesFile ? `--cookies "${cookiesFile}"` : "";
-
-  // YouTube'un yeni JS-challenge korumasini cozmek icin node'u JS runtime olarak belirtiyoruz
-  // ve EJS (challenge solver) scriptlerini GitHub'dan otomatik indirmesini sagliyoruz.
-  // Cookie yoksa android client'a geri donuyoruz (daha az JS-challenge gerektirir)
-  const jsRuntimeArgs = cookiesFile
-    ? `--js-runtimes node --remote-components ejs:github`
-    : `--extractor-args "youtube:player_client=android" --js-runtimes node --remote-components ejs:github`;
-
-  // Once video suresini kontrol et (format kisitlamasi koymadan, sadece bilgi sorgusu)
+  // Once video suresini kontrol et (asiri uzun videolari engellemek icin)
   const { stdout: durationOut } = await execAsync(
-    `yt-dlp --no-warnings ${authArgs} ${jsRuntimeArgs} --print "%(duration)s" "${videoUrl}"`,
+    `yt-dlp --no-warnings --print "%(duration)s" "${videoUrl}"`,
     { timeout: 30000 }
   );
   const duration = parseFloat(durationOut.trim());
@@ -83,20 +50,11 @@ async function downloadAudio(videoUrl, jobId) {
     );
   }
 
-  // Sesi indir ve mp3'e cevir (-x kendi icinde en iyi sesi secer, ekstra -f kisitlamasi koymuyoruz)
-  try {
-    await execAsync(
-      `yt-dlp --no-warnings ${authArgs} ${jsRuntimeArgs} -x --audio-format mp3 --audio-quality 5 -o "${outputTemplate}" "${videoUrl}"`,
-      { timeout: 120000, maxBuffer: 1024 * 1024 * 50 }
-    );
-  } catch (err) {
-    // Format hatasi alirsak, tum formatlari indirip ffmpeg ile sese cevirme fallback'i deniyoruz
-    console.error("Birincil indirme hatasi, fallback deneniyor:", err.stderr || err.message);
-    await execAsync(
-      `yt-dlp --no-warnings ${authArgs} ${jsRuntimeArgs} -f "best" -x --audio-format mp3 --audio-quality 5 -o "${outputTemplate}" "${videoUrl}"`,
-      { timeout: 120000, maxBuffer: 1024 * 1024 * 50 }
-    );
-  }
+  // Sesi indir ve mp3'e cevir
+  await execAsync(
+    `yt-dlp --no-warnings -x --audio-format mp3 --audio-quality 5 -o "${outputTemplate}" "${videoUrl}"`,
+    { timeout: 120000, maxBuffer: 1024 * 1024 * 50 }
+  );
 
   if (!fs.existsSync(finalPath)) {
     throw new Error("Ses dosyasi indirilemedi. Video linki gecersiz veya platform desteklenmiyor olabilir.");
@@ -197,11 +155,12 @@ app.post("/api/extract-recipe", async (req, res) => {
     return res.status(400).json({ error: "Gecersiz video linki." });
   }
 
-  const allowedHosts = ["youtube.com", "youtu.be", "tiktok.com", "instagram.com"];
+  const allowedHosts = ["tiktok.com", "instagram.com"];
   const isAllowed = allowedHosts.some((h) => validUrl.hostname.includes(h));
   if (!isAllowed) {
     return res.status(400).json({
-      error: "Sadece YouTube, TikTok ve Instagram linkleri desteklenir.",
+      error:
+        "Sadece TikTok ve Instagram linkleri desteklenir. (YouTube, sunucu altyapimizdaki kisitlamalar nedeniyle suanlik desteklenmiyor.)",
     });
   }
 
