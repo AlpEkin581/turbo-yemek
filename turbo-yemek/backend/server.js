@@ -33,10 +33,25 @@ function cleanup(...filePaths) {
 // ---- YouTube cookie dosyasini hazirla (env variable'dan) ----
 const COOKIES_PATH = path.join(TMP_DIR, "youtube_cookies.txt");
 function ensureCookiesFile() {
-  if (process.env.YOUTUBE_COOKIES && !fs.existsSync(COOKIES_PATH)) {
-    fs.writeFileSync(COOKIES_PATH, process.env.YOUTUBE_COOKIES, "utf-8");
+  if (fs.existsSync(COOKIES_PATH)) return COOKIES_PATH;
+
+  const raw = process.env.YOUTUBE_COOKIES_BASE64 || process.env.YOUTUBE_COOKIES;
+  if (!raw) return null;
+
+  let content;
+  if (process.env.YOUTUBE_COOKIES_BASE64) {
+    // Base64 ile geldiyse decode ediyoruz (multi-line bozulma riskine karsi en guvenli yontem)
+    content = Buffer.from(raw, "base64").toString("utf-8");
+  } else {
+    content = raw;
   }
-  return fs.existsSync(COOKIES_PATH) ? COOKIES_PATH : null;
+
+  if (!content.includes("Netscape HTTP Cookie File")) {
+    console.error("UYARI: YOUTUBE_COOKIES icerigi Netscape formatinda gorunmuyor.");
+  }
+
+  fs.writeFileSync(COOKIES_PATH, content, "utf-8");
+  return COOKIES_PATH;
 }
 
 // ---- Adim 1: URL'den ses dosyasi indir (yt-dlp) ----
