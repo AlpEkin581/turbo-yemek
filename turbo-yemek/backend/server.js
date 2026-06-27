@@ -35,7 +35,7 @@ function cleanup(...filePaths) {
 // bu sorun yasanmiyor, bu yuzden sadece bu ikisini destekliyoruz.
 async function downloadAudio(videoUrl, jobId) {
   const outputTemplate = path.join(TMP_DIR, `${jobId}.%(ext)s`);
-  const finalPath = path.join(TMP_DIR, `${jobId}.mp3`);
+  const finalPath = path.join(TMP_DIR, `${jobId}.wav`);
 
   // Once video suresini kontrol et (asiri uzun videolari engellemek icin)
   const { stdout: durationOut } = await execAsync(
@@ -49,9 +49,9 @@ async function downloadAudio(videoUrl, jobId) {
     );
   }
 
-  // Sesi indir ve mp3'e cevir
+  // Sesi indir ve whisper.cpp'nin istedigi formata cevir: 16kHz, mono, 16-bit PCM WAV
   await execAsync(
-    `yt-dlp --no-warnings -x --audio-format mp3 --audio-quality 5 -o "${outputTemplate}" "${videoUrl}"`,
+    `yt-dlp --no-warnings -x --audio-format wav --postprocessor-args "ffmpeg:-ar 16000 -ac 1 -c:a pcm_s16le" -o "${outputTemplate}" "${videoUrl}"`,
     { timeout: 120000, maxBuffer: 1024 * 1024 * 50 }
   );
 
@@ -62,35 +62,30 @@ async function downloadAudio(videoUrl, jobId) {
   return finalPath;
 }
 
-// ---- Adim 2: Ses dosyasini OpenRouter STT API ile yaziya cevir ----
-// Tek bir OpenRouter key'i ile hem transcript hem tarif cikarma yapiliyor,
-// kullaniciya ayrica OpenAI key'i sormamiza gerek kalmiyor.
-async function transcribeAudio(audioPath, apiKey, sttModel) {
-  const audioBuffer = fs.readFileSync(audioPath);
-  const audioBase64 = audioBuffer.toString("base64");
+// ---- Adim 2: Ses dosyasini whisper.cpp ile yaziya cevir (kendi sunucumuzda, ucretsiz) ----
+// whisper-cli, /opt/whisper-models/ggml-tiny.bin modelini kullanarak
+// hicbir dis API'ye baglanmadan, tamamen kendi sunucumuzda transkript cikarir.
+const WHISPER_MODEL_PATH = process.env.WHISPER_MODEL_PATH || "/opt/whisper-models/ggml-tiny.bin";
 
-  const response = await fetch("https://openrouter.ai/api/v1/audio/transcriptions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: sttModel || "openai/whisper-large-v3-turbo",
-      input_audio: {
-        data: audioBase64,
-        format: "mp3",
-      },
-    }),
-  });
+async function transcribeAudio(audioPath) {
+  const outputBase = audioPath.replace(/\.wav$/, "");
 
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Transcript cikarma hatasi (${response.status}): ${errText.slice(0, 300)}`);
+  // -l auto: dili otomatik tespit et (Turkce videolar icin onemli)
+  // -otxt: duz metin dosyasi olarak ciktiyi kaydet
+  // -nt: zaman damgalarini (timestamp) kaldir, sadece metin kalsin
+  await execAsync(
+    `whisper-cli -m "${WHISPER_MODEL_PATH}" -f "${audioPath}" -l auto -otxt -nt -of "${outputBase}"`,
+    { timeout: 120000, maxBuffer: 1024 * 1024 * 50 }
+  );
+
+  const txtPath = `${outputBase}.txt`;
+  if (!fs.existsSync(txtPath)) {
+    throw new Error("Transcript dosyasi olusturulamadi.");
   }
 
-  const data = await response.json();
-  return data.text || "";
+  const transcript = fs.readFileSync(txtPath, "utf-8").trim();
+  cleanup(txtPath);
+  return transcript;
 }
 
 // ---- Adim 3: Transcript'ten LLM ile Turkce tarif cikar (OpenRouter) ----
@@ -117,7 +112,7 @@ Eger transkriptte tarif bilgisi yoksa veya yetersizse, "baslik" alanina "TARIF B
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: model || "anthropic/claude-3.5-sonnet",
+      model: model || "meta-llama/llama-3.3-70b-instruct:free",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: `Video transkripti:\n\n${transcript}` },
@@ -175,7 +170,7 @@ app.post("/api/extract-recipe", async (req, res) => {
 
   try {
     audioPath = await downloadAudio(videoUrl, jobId);
-    const transcript = await transcribeAudio(audioPath, openrouterKey, sttModel);
+    const transcript = await transcribeAudio(audioPath);
 
     if (!transcript || transcript.trim().length < 10) {
       return res.status(422).json({
