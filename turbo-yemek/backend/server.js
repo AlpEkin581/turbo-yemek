@@ -5,7 +5,6 @@ import { promisify } from "util";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
-import FormData from "form-data";
 import fetch from "node-fetch";
 
 const execAsync = promisify(exec);
@@ -63,20 +62,26 @@ async function downloadAudio(videoUrl, jobId) {
   return finalPath;
 }
 
-// ---- Adim 2: Ses dosyasini OpenAI Whisper API ile yaziya cevir ----
-async function transcribeAudio(audioPath, apiKey) {
-  const form = new FormData();
-  form.append("file", fs.createReadStream(audioPath));
-  form.append("model", "whisper-1");
-  form.append("response_format", "text");
+// ---- Adim 2: Ses dosyasini OpenRouter STT API ile yaziya cevir ----
+// Tek bir OpenRouter key'i ile hem transcript hem tarif cikarma yapiliyor,
+// kullaniciya ayrica OpenAI key'i sormamiza gerek kalmiyor.
+async function transcribeAudio(audioPath, apiKey, sttModel) {
+  const audioBuffer = fs.readFileSync(audioPath);
+  const audioBase64 = audioBuffer.toString("base64");
 
-  const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+  const response = await fetch("https://openrouter.ai/api/v1/audio/transcriptions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
-      ...form.getHeaders(),
+      "Content-Type": "application/json",
     },
-    body: form,
+    body: JSON.stringify({
+      model: sttModel || "openai/whisper-large-v3-turbo",
+      input_audio: {
+        data: audioBase64,
+        format: "mp3",
+      },
+    }),
   });
 
   if (!response.ok) {
@@ -84,7 +89,8 @@ async function transcribeAudio(audioPath, apiKey) {
     throw new Error(`Transcript cikarma hatasi (${response.status}): ${errText.slice(0, 300)}`);
   }
 
-  return await response.text();
+  const data = await response.json();
+  return data.text || "";
 }
 
 // ---- Adim 3: Transcript'ten LLM ile Turkce tarif cikar (OpenRouter) ----
@@ -140,11 +146,11 @@ Eger transkriptte tarif bilgisi yoksa veya yetersizse, "baslik" alanina "TARIF B
 
 // ---- Ana endpoint ----
 app.post("/api/extract-recipe", async (req, res) => {
-  const { videoUrl, openaiKey, openrouterKey, model } = req.body;
+  const { videoUrl, openrouterKey, model, sttModel } = req.body;
 
-  if (!videoUrl || !openaiKey || !openrouterKey) {
+  if (!videoUrl || !openrouterKey) {
     return res.status(400).json({
-      error: "videoUrl, openaiKey ve openrouterKey alanlari gerekli.",
+      error: "videoUrl ve openrouterKey alanlari gerekli.",
     });
   }
 
@@ -169,7 +175,7 @@ app.post("/api/extract-recipe", async (req, res) => {
 
   try {
     audioPath = await downloadAudio(videoUrl, jobId);
-    const transcript = await transcribeAudio(audioPath, openaiKey);
+    const transcript = await transcribeAudio(audioPath, openrouterKey, sttModel);
 
     if (!transcript || transcript.trim().length < 10) {
       return res.status(422).json({
