@@ -2,9 +2,9 @@ import { useState, useEffect } from "react";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8080";
 const MODELS = [
-  { id: "anthropic/claude-3.5-sonnet", label: "Claude 3.5 Sonnet (önerilen)" },
-  { id: "openai/gpt-4o-mini", label: "GPT-4o Mini (ucuz & hızlı)" },
-  { id: "google/gemini-flash-1.5", label: "Gemini 1.5 Flash (ucuz & hızlı)" },
+  { id: "meta-llama/llama-3.3-70b-instruct:free", label: "Llama 3.3 70B (ücretsiz, önerilen)" },
+  { id: "deepseek/deepseek-chat-v3-0324:free", label: "DeepSeek Chat V3 (ücretsiz)" },
+  { id: "google/gemini-2.0-flash-exp:free", label: "Gemini 2.0 Flash (ücretsiz)" },
 ];
 
 export default function Home() {
@@ -120,7 +120,7 @@ export default function Home() {
 
           <div className="field">
             <label htmlFor="openrouterKey">
-              OpenRouter API key <span className="hint">tek anahtar, her şey için</span>
+              OpenRouter API key <span className="hint">tarif çıkarmak için</span>
             </label>
             <input
               id="openrouterKey"
@@ -132,7 +132,8 @@ export default function Home() {
               autoComplete="off"
             />
             <div className="note">
-              Anahtarın sunucuda saklanmaz, sadece tarayıcında tutulur.{" "}
+              Ses metne çevirme tamamen kendi sunucumuzda, ücretsiz olarak yapılır. Bu anahtar
+              sadece tarifi yazıya dökmek için kullanılır ve sunucuda saklanmaz.{" "}
               <a href="https://openrouter.ai/keys" target="_blank" rel="noreferrer">
                 Buradan al
               </a>
