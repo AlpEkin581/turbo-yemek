@@ -62,14 +62,18 @@ async function downloadAudio(videoUrl, jobId) {
   // YouTube bot tespitini atlatmak icin: once cookie dosyasi varsa onu kullan,
   // yoksa android client spoofing'e geri don
   const cookiesFile = ensureCookiesFile();
-  const authArgs = cookiesFile
-    ? `--cookies "${cookiesFile}"`
-    : `--extractor-args "youtube:player_client=android"`;
+  const authArgs = cookiesFile ? `--cookies "${cookiesFile}"` : "";
 
-  // Once video suresini kontrol et (asiri uzun/buyuk videolari engellemek icin)
-  // -f ile esnek format secimi: format hatasi almamak icin "best" fallback'i ekliyoruz
+  // YouTube'un yeni JS-challenge korumasini cozmek icin node'u JS runtime olarak belirtiyoruz
+  // ve EJS (challenge solver) scriptlerini GitHub'dan otomatik indirmesini sagliyoruz.
+  // Cookie yoksa android client'a geri donuyoruz (daha az JS-challenge gerektirir)
+  const jsRuntimeArgs = cookiesFile
+    ? `--js-runtimes node --remote-components ejs:github`
+    : `--extractor-args "youtube:player_client=android" --js-runtimes node --remote-components ejs:github`;
+
+  // Once video suresini kontrol et (format kisitlamasi koymadan, sadece bilgi sorgusu)
   const { stdout: durationOut } = await execAsync(
-    `yt-dlp --no-warnings ${authArgs} -f "bestaudio/best" --print "%(duration)s" "${videoUrl}"`,
+    `yt-dlp --no-warnings ${authArgs} ${jsRuntimeArgs} --print "%(duration)s" "${videoUrl}"`,
     { timeout: 30000 }
   );
   const duration = parseFloat(durationOut.trim());
@@ -79,11 +83,20 @@ async function downloadAudio(videoUrl, jobId) {
     );
   }
 
-  // Sesi indir ve mp3'e cevir
-  await execAsync(
-    `yt-dlp --no-warnings ${authArgs} -f "bestaudio/best" -x --audio-format mp3 --audio-quality 5 -o "${outputTemplate}" "${videoUrl}"`,
-    { timeout: 120000, maxBuffer: 1024 * 1024 * 50 }
-  );
+  // Sesi indir ve mp3'e cevir (-x kendi icinde en iyi sesi secer, ekstra -f kisitlamasi koymuyoruz)
+  try {
+    await execAsync(
+      `yt-dlp --no-warnings ${authArgs} ${jsRuntimeArgs} -x --audio-format mp3 --audio-quality 5 -o "${outputTemplate}" "${videoUrl}"`,
+      { timeout: 120000, maxBuffer: 1024 * 1024 * 50 }
+    );
+  } catch (err) {
+    // Format hatasi alirsak, tum formatlari indirip ffmpeg ile sese cevirme fallback'i deniyoruz
+    console.error("Birincil indirme hatasi, fallback deneniyor:", err.message);
+    await execAsync(
+      `yt-dlp --no-warnings ${authArgs} ${jsRuntimeArgs} -f "best" -x --audio-format mp3 --audio-quality 5 -o "${outputTemplate}" "${videoUrl}"`,
+      { timeout: 120000, maxBuffer: 1024 * 1024 * 50 }
+    );
+  }
 
   if (!fs.existsSync(finalPath)) {
     throw new Error("Ses dosyasi indirilemedi. Video linki gecersiz veya platform desteklenmiyor olabilir.");
