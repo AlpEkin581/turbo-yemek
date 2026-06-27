@@ -30,17 +30,30 @@ function cleanup(...filePaths) {
   }
 }
 
+// ---- YouTube cookie dosyasini hazirla (env variable'dan) ----
+const COOKIES_PATH = path.join(TMP_DIR, "youtube_cookies.txt");
+function ensureCookiesFile() {
+  if (process.env.YOUTUBE_COOKIES && !fs.existsSync(COOKIES_PATH)) {
+    fs.writeFileSync(COOKIES_PATH, process.env.YOUTUBE_COOKIES, "utf-8");
+  }
+  return fs.existsSync(COOKIES_PATH) ? COOKIES_PATH : null;
+}
+
 // ---- Adim 1: URL'den ses dosyasi indir (yt-dlp) ----
 async function downloadAudio(videoUrl, jobId) {
   const outputTemplate = path.join(TMP_DIR, `${jobId}.%(ext)s`);
   const finalPath = path.join(TMP_DIR, `${jobId}.mp3`);
 
-  // YouTube bot tespitini atlatmak icin Android client gibi davranmasini sagliyoruz
-  const clientArgs = `--extractor-args "youtube:player_client=android"`;
+  // YouTube bot tespitini atlatmak icin: once cookie dosyasi varsa onu kullan,
+  // yoksa android client spoofing'e geri don
+  const cookiesFile = ensureCookiesFile();
+  const authArgs = cookiesFile
+    ? `--cookies "${cookiesFile}"`
+    : `--extractor-args "youtube:player_client=android"`;
 
   // Once video suresini kontrol et (asiri uzun/buyuk videolari engellemek icin)
   const { stdout: durationOut } = await execAsync(
-    `yt-dlp --no-warnings ${clientArgs} --print "%(duration)s" "${videoUrl}"`,
+    `yt-dlp --no-warnings ${authArgs} --print "%(duration)s" "${videoUrl}"`,
     { timeout: 30000 }
   );
   const duration = parseFloat(durationOut.trim());
@@ -52,7 +65,7 @@ async function downloadAudio(videoUrl, jobId) {
 
   // Sesi indir ve mp3'e cevir
   await execAsync(
-    `yt-dlp --no-warnings ${clientArgs} -x --audio-format mp3 --audio-quality 5 -o "${outputTemplate}" "${videoUrl}"`,
+    `yt-dlp --no-warnings ${authArgs} -x --audio-format mp3 --audio-quality 5 -o "${outputTemplate}" "${videoUrl}"`,
     { timeout: 120000, maxBuffer: 1024 * 1024 * 50 }
   );
 
