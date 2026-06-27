@@ -89,7 +89,7 @@ export default function Home() {
             Turbo<span className="accent"> Yemek</span>
           </h1>
           <p>
-            YouTube, TikTok veya Instagram'daki yemek videosunun linkini yapıştır,
+            TikTok veya Instagram'daki yemek videosunun linkini yapıştır,
             tarifi Türkçe ve yazılı olarak çıkar.
           </p>
         </header>
@@ -100,7 +100,7 @@ export default function Home() {
             <input
               id="videoUrl"
               type="text"
-              placeholder="https://www.youtube.com/watch?v=..."
+              placeholder="https://www.tiktok.com/@kullanici/video/..."
               value={videoUrl}
               onChange={(e) => setVideoUrl(e.target.value)}
               disabled={loading}
