@@ -35,9 +35,12 @@ async function downloadAudio(videoUrl, jobId) {
   const outputTemplate = path.join(TMP_DIR, `${jobId}.%(ext)s`);
   const finalPath = path.join(TMP_DIR, `${jobId}.mp3`);
 
+  // YouTube bot tespitini atlatmak icin Android client gibi davranmasini sagliyoruz
+  const clientArgs = `--extractor-args "youtube:player_client=android"`;
+
   // Once video suresini kontrol et (asiri uzun/buyuk videolari engellemek icin)
   const { stdout: durationOut } = await execAsync(
-    `yt-dlp --no-warnings --print "%(duration)s" "${videoUrl}"`,
+    `yt-dlp --no-warnings ${clientArgs} --print "%(duration)s" "${videoUrl}"`,
     { timeout: 30000 }
   );
   const duration = parseFloat(durationOut.trim());
@@ -49,7 +52,7 @@ async function downloadAudio(videoUrl, jobId) {
 
   // Sesi indir ve mp3'e cevir
   await execAsync(
-    `yt-dlp --no-warnings -x --audio-format mp3 --audio-quality 5 -o "${outputTemplate}" "${videoUrl}"`,
+    `yt-dlp --no-warnings ${clientArgs} -x --audio-format mp3 --audio-quality 5 -o "${outputTemplate}" "${videoUrl}"`,
     { timeout: 120000, maxBuffer: 1024 * 1024 * 50 }
   );
 
