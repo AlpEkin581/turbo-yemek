@@ -9,7 +9,6 @@ const MODELS = [
 
 export default function Home() {
   const [videoUrl, setVideoUrl] = useState("");
-  const [openaiKey, setOpenaiKey] = useState("");
   const [openrouterKey, setOpenrouterKey] = useState("");
   const [model, setModel] = useState(MODELS[0].id);
   const [loading, setLoading] = useState(false);
@@ -17,17 +16,11 @@ export default function Home() {
   const [error, setError] = useState("");
   const [recipe, setRecipe] = useState(null);
 
-  // Anahtarları sadece tarayıcıda (localStorage) hatırla — sunucuya hiçbir zaman kalıcı kaydedilmez
+  // Anahtarı sadece tarayıcıda (localStorage) hatırla — sunucuya hiçbir zaman kalıcı kaydedilmez
   useEffect(() => {
-    const savedOpenai = window.localStorage.getItem("ty_openai_key");
     const savedOpenrouter = window.localStorage.getItem("ty_openrouter_key");
-    if (savedOpenai) setOpenaiKey(savedOpenai);
     if (savedOpenrouter) setOpenrouterKey(savedOpenrouter);
   }, []);
-
-  useEffect(() => {
-    if (openaiKey) window.localStorage.setItem("ty_openai_key", openaiKey);
-  }, [openaiKey]);
 
   useEffect(() => {
     if (openrouterKey) window.localStorage.setItem("ty_openrouter_key", openrouterKey);
@@ -38,8 +31,8 @@ export default function Home() {
     setError("");
     setRecipe(null);
 
-    if (!videoUrl || !openaiKey || !openrouterKey) {
-      setError("Lütfen video linkini ve her iki API anahtarını da gir.");
+    if (!videoUrl || !openrouterKey) {
+      setError("Lütfen video linkini ve OpenRouter API anahtarını gir.");
       return;
     }
 
@@ -48,7 +41,7 @@ export default function Home() {
 
     try {
       const statusTimer1 = setTimeout(
-        () => setStatusText("Ses metne çevriliyor (Whisper)..."),
+        () => setStatusText("Ses metne çevriliyor..."),
         4000
       );
       const statusTimer2 = setTimeout(
@@ -59,7 +52,7 @@ export default function Home() {
       const res = await fetch(`${BACKEND_URL}/api/extract-recipe`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ videoUrl, openaiKey, openrouterKey, model }),
+        body: JSON.stringify({ videoUrl, openrouterKey, model }),
       });
 
       clearTimeout(statusTimer1);
@@ -126,30 +119,8 @@ export default function Home() {
           </div>
 
           <div className="field">
-            <label htmlFor="openaiKey">
-              OpenAI API key <span className="hint">ses → yazı için</span>
-            </label>
-            <input
-              id="openaiKey"
-              type="password"
-              placeholder="sk-..."
-              value={openaiKey}
-              onChange={(e) => setOpenaiKey(e.target.value)}
-              disabled={loading}
-              autoComplete="off"
-            />
-            <div className="note">
-              Whisper transcript için kullanılır.{" "}
-              <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer">
-                Buradan al
-              </a>
-              .
-            </div>
-          </div>
-
-          <div className="field">
             <label htmlFor="openrouterKey">
-              OpenRouter API key <span className="hint">tarif çıkarmak için</span>
+              OpenRouter API key <span className="hint">tek anahtar, her şey için</span>
             </label>
             <input
               id="openrouterKey"
@@ -161,7 +132,7 @@ export default function Home() {
               autoComplete="off"
             />
             <div className="note">
-              Anahtarların hiçbiri sunucuda saklanmaz, sadece tarayıcında tutulur.{" "}
+              Anahtarın sunucuda saklanmaz, sadece tarayıcında tutulur.{" "}
               <a href="https://openrouter.ai/keys" target="_blank" rel="noreferrer">
                 Buradan al
               </a>
