@@ -91,7 +91,7 @@ async function downloadAudio(videoUrl, jobId) {
     );
   } catch (err) {
     // Format hatasi alirsak, tum formatlari indirip ffmpeg ile sese cevirme fallback'i deniyoruz
-    console.error("Birincil indirme hatasi, fallback deneniyor:", err.message);
+    console.error("Birincil indirme hatasi, fallback deneniyor:", err.stderr || err.message);
     await execAsync(
       `yt-dlp --no-warnings ${authArgs} ${jsRuntimeArgs} -f "best" -x --audio-format mp3 --audio-quality 5 -o "${outputTemplate}" "${videoUrl}"`,
       { timeout: 120000, maxBuffer: 1024 * 1024 * 50 }
@@ -221,8 +221,10 @@ app.post("/api/extract-recipe", async (req, res) => {
     const recipe = await extractRecipe(transcript, openrouterKey, model);
     return res.json({ recipe, transcript });
   } catch (err) {
-    console.error("Islem hatasi:", err.message);
-    return res.status(500).json({ error: err.message || "Bilinmeyen bir hata olustu." });
+    // stderr genelde yt-dlp'nin gercek hata mesajini icerir, sadece err.message yetersiz kalabilir
+    const detail = err.stderr || err.message || "Bilinmeyen bir hata olustu.";
+    console.error("Islem hatasi (detayli):", detail);
+    return res.status(500).json({ error: detail.toString().slice(0, 1000) });
   } finally {
     cleanup(audioPath);
   }
